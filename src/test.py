@@ -21,6 +21,12 @@ def call_cdf(func, x_value, step_size, step_reduction_factor, iterations):
     function = LAMBDA_FACTORY(func)
     return lib.central_difference_formula(function, x_value, step_size, step_reduction_factor, iterations)
 
+def call_euler(func, buffer, lo, hi, y_zero, step_size):
+    LAMBDA_FACTORY = ctypes.CFUNCTYPE(ctypes.c_double, c_types.c_double, c_types.c_double)
+    function = LAMBDA_FACTORY(func)
+    BUFF_PTR = ctypes.ARRAY(c_types.c_double, len(buffer))
+    
+
 
 call_cdf(lambda x: math.exp(x), 1.0, 1.0, 0.1, 4)
 #call_test()

@@ -114,10 +114,38 @@ pub unsafe extern "C" fn eulers_method(
         }
         current_value = current_value + (step_size * function(current_range, current_value));
         current_range += step_size;
-        //SAFTEY: assuming the calling client has sense enough to point me to a buffer that not null and contains f64
+        //SAFTEY: assuming the calling client has sense enough to point me to a buffer thats not null and contains f64
         *buffer.add(count) = current_value;
         count += 1;
     }
+}
+
+#[no_mangle]
+pub unsafe fn simpsons_method(
+    function: extern fn(f64) -> f64,
+    hi: f64,
+    lo: f64,
+    n_steps: usize
+) -> f64 {
+    let mut four_step = true;
+    let step_size = (hi - lo)/n_steps as f64;
+    let first_compute = step_size/ 3f64;
+    let mut summation = 0f64;
+    for step in 0 ..=n_steps{
+        if step == 0 || step == n_steps{
+            summation += function(lo + (step_size * step as f64));
+            continue;
+        }
+        if four_step{
+            summation += 4f64 * (function(lo + (step_size * step as f64)));
+            four_step = false
+        }
+        else{
+            summation += 2f64 * (function(lo + (step_size * step as f64)));
+            four_step = true
+        }
+    }
+    summation * first_compute
 }
 
 #[cfg(test)]
@@ -135,4 +163,18 @@ mod test {
     //     let fn_ptr = &|x| f64::exp(x);
     //     central_difference_formula(fn_ptr, 1.0, 1.0, 0.1, 4);
     // }
+    use super::*;
+    #[test]
+    fn test_eulers(){
+        extern "C" fn e(x: f64) -> f64{
+            x.exp()
+        }
+        let hi = 2f64;
+        let lo = 1f64;
+        let n_steps = 100;
+        unsafe{
+            dbg!(simpsons_method(e, hi, lo, n_steps));
+            let var = dbg!(2f64.exp() - 1f64.exp());
+        }
+    }
 }
