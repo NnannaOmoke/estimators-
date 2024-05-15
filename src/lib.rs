@@ -121,7 +121,7 @@ pub unsafe extern "C" fn eulers_method(
 }
 
 #[no_mangle]
-pub unsafe fn simpsons_method(
+pub unsafe extern "C" fn simpsons_method(
     function: extern fn(f64) -> f64,
     hi: f64,
     lo: f64,
@@ -146,6 +146,90 @@ pub unsafe fn simpsons_method(
         }
     }
     summation * first_compute
+}
+
+
+//assumes that the functions given have a non zero x1, x2, x3...so basically pass in a system of eqns and solve
+//assumes that the slack have been given; we cannot introduce this because this will require reallocation of memory on our end, which we'll like to avoid through FFI
+#[no_mangle]
+pub unsafe extern "C" fn simplex_method_max(
+    standard_form: *mut f64,
+    standard_form_len: usize,
+    standard_form_num_rows: usize,
+    standard_form_soln: *mut f64,
+    objective_fn: *mut f64,
+){
+    //assume that the len of the objective fn and the standard form solution len is standard form len/2
+    loop{
+        if check_non_negative(standard_form_soln, standard_form_len/2){
+            break
+        }
+        let pivot_col = idxmax(standard_form_soln, (standard_form_len - 1)/2);
+        let mut pivot_vector: Vec<f64> = Vec::new();
+        (0 .. standard_form_num_rows).for_each(|x| pivot_vector.push(standard_form.add(standard_form_num_rows * x + pivot_col).read()));
+        //not eagerly evaluated, we'll have to reloop to find the idxmin
+        (0 .. standard_form_len).for_each(|x|{
+            *standard_form_soln.add(x) = *standard_form_soln.add(x)/pivot_vector[x];
+        });
+        let pivot_row = idxmin(standard_form_soln, standard_form_num_rows);
+        let pivot_value = standard_form.add(pivot_row * standard_form_num_rows + pivot_col).read();
+        //perform pivoting here
+        //reduce the pivot to 1, devide through by pivot_elem
+        (0 .. standard_form_len).for_each(|x|{
+            *standard_form.add(pivot_row * standard_form_num_rows + x) = *standard_form.add(pivot_row * standard_form_num_rows + x)/pivot_value;
+        });
+        //check the upper col if it is zero
+        
+
+
+    }
+}
+
+pub fn idxmax(vector: *mut f64, len: usize) -> usize{
+    let vector = unsafe {
+        Vec::from_raw_parts(vector, len, len)
+    };
+    (0 .. len).fold(0, |x, y|{
+        if vector[x] == f64::max(vector[x].abs(), vector[y].abs()){
+            return x
+        }
+        y
+    })
+}
+
+pub fn idxmin(vector: *mut f64, len: usize) -> usize{
+    let vector = unsafe {
+        Vec::from_raw_parts(vector, len, len)
+    };
+    (0 .. len).fold(0, |x, y|{
+        if vector[x] == f64::min(vector[x].abs(), vector[y].abs()){
+            return x
+        }
+        y
+    })
+
+}
+
+pub fn check_non_negative(vector: *mut f64, len: usize) -> bool{
+    let vector = unsafe {
+        Vec::from_raw_parts(vector, len, len)
+    };
+    let mut res = true;
+    vector.iter().for_each(|x| if x.is_sign_negative(){
+        res = false;
+    });
+    res
+}
+
+
+pub fn make_eye_vector(shape: usize) -> Vec<Vec<f64>>{
+    let res = (0 .. shape).map(|x|{
+        let mut vec = Vec::new();
+        vec.resize(shape, 0f64);
+        vec[x] = 1f64;
+        vec
+    }).collect::<Vec<Vec<f64>>>(); 
+    res
 }
 
 #[cfg(test)]
